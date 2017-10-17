@@ -10,14 +10,14 @@ from random import randint
 
 
 class Logan:
-    def __init__(self, log, threshold=85, interval=10, keep=20):
+    def __init__(self, log, threshold=85, interval=10, keep=1):
         # the actual logfile(s)  ! multiple not implemented
         self.log = log
         # data threshold
         self.threshold = threshold
         # time in seconds to read again from the file
         self.interval = interval
-        # time in seconds for keep event rows:
+        # time in minutes for keep event rows:
         self.keep = keep
         # the file handle for the file for now..
         self.handle = None
@@ -38,17 +38,28 @@ class Logan:
         with open('logan.json','w') as f:
             json.dump(data, f, indent=2)
 
+    def clean(self, data):
+        timethreshold = datetime.now() - timedelta(minutes=self.keep)
+        for n in data.keys():
+            checked = []
+            for e in [e for e in data[n]['events'] if e['timestamp'] >= timethreshold]:
+                checked.append(e)
+            data[n]['events'] = checked
+        return data
+    
     def show(self, data):
         o = os.system('clear')
+        print("Got",len(data.keys()), "nodes")
         print("Logan, threshold: {}".format(self.threshold))
         print("- - - Node status - - -")
         print("     {:3}   {:3}   {:7}    Eventcount\n".format('id','%','status'))
         for k in data.keys():
-            newest = None
+            newest = {'value': 0}
             for r in sorted(data[k]['events'], key=lambda k: k['timestamp']):
                 newest = r
+            
             print("Node {:3} [ {:3} : {:7} ], {}".format(
-                k, newest['value'], data[k]['status'], str(len(data[k]['events'])))
+                k, str(newest['value']), data[k]['status'], str(len(data[k]['events'])))
             )
             # strftime("%Y-%m-%d %H:%M:%S",newest['timestamp']))
 
@@ -103,6 +114,7 @@ def main():
                     sleep(1)
                     logan.show(nodes)
                     waitcounter += 1
+                nodes = logan.clean(nodes)
 
 
     except KeyboardInterrupt:
